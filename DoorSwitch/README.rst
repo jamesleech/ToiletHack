@@ -2,8 +2,8 @@ How to build this PlatformIO based project
 =====================================
 
 1. `Install PlatformIO <http://docs.platformio.org/en/stable/installation.html>`_
-2. Clone this repo, git clone https://github.com/jamesleech/ToiletHack.git_
-3. Create your own user_config.h in the src directory_
+2. Clone this repo, git clone https://github.com/jamesleech/ToiletHack.git
+3. Create your own user_config.h in the src directory
 
 .. code-block:: bash
 
@@ -15,7 +15,7 @@ How to build this PlatformIO based project
 
 4. Edit the values for ssid, password and mqtt server to those in your environment
 
-5. Run these commands: _
+5. Run these commands:
 
 .. code-block:: bash
 
