@@ -14,8 +14,13 @@ How to build this PlatformIO based project
     > cp sample_user_config.h user_config.h
 
 4. Edit the values for ssid, password and mqtt server to those in your environment
-
-5. Run these commands:
+5. Edit platformio.ini
+    
+    remove the upload_port ip line for initial serial programming
+    
+    add the line back in with the ip of your device for OTA programming
+    
+6. Run these commands:
 
 .. code-block:: bash
 
