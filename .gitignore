@@ -3,3 +3,4 @@
 .gcc-flags.json
 .piolibdeps
 src/user_config.h
+node/node_modules
