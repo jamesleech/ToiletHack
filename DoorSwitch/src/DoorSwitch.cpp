@@ -1,4 +1,7 @@
-#include "doorSwitch.h"
+#ifndef UNIT_TEST
+#ifndef OSX
+
+#include "DoorSwitch.h"
 
 void setup() {
   pinMode(0, INPUT);
@@ -13,7 +16,7 @@ void setup() {
 }
 
 void loop() {
-  CustomOTA.handle();
+  ArduinoOTA.handle();
 
   //mqtt connected?
   if (!client.connected()) {
@@ -66,26 +69,20 @@ void setup_OTA() {
   // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
   // CustomOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
 
-  CustomOTA.onStart([]() {
-    String type;
-    if (CustomOTA.getCommand() == U_FLASH)
-      type = "OTA starting firmware update";
-    else // U_SPIFFS
-      type = "OTA starting filesystem update";
-
+  ArduinoOTA.onStart([]() {
     // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-    client.publish(MQTT_TOPIC, type.c_str());
+    client.publish(MQTT_TOPIC, "Starting OTA Update");
   });
 
-  CustomOTA.onEnd([]() {
+  ArduinoOTA.onEnd([]() {
     client.publish(MQTT_TOPIC, "OTA Finished, Rebooting");
   });
 
-  CustomOTA.onProgress([](unsigned int progress, unsigned int total) {
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     //Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
   });
 
-  CustomOTA.onError([](ota_error_t error) {
+  ArduinoOTA.onError([](ota_error_t error) {
     client.publish(MQTT_TOPIC, "OTA update failed");
     if (error == OTA_AUTH_ERROR) client.publish(MQTT_TOPIC, "OTA update: Auth Failed");
     else if (error == OTA_BEGIN_ERROR) client.publish(MQTT_TOPIC, "OTA update: Begin Failed");
@@ -94,7 +91,7 @@ void setup_OTA() {
     else if (error == OTA_END_ERROR) client.publish(MQTT_TOPIC, "OTA update: End Failed");
   });
 
-  CustomOTA.begin();
+  ArduinoOTA.begin();
 }
 
 void setup_MQTT() {
@@ -130,7 +127,7 @@ bool mqtt_reconnect() {
     mqtt_publishConnected(); // Once connected, publish an announcement...
 
     char mqttchannel[30];
-    snprintf(mqttchannel, 30, "ToiletHack.Node.*", ESP.getChipId());
+    snprintf(mqttchannel, 30, "ToiletHack.Node.%ld", ESP.getChipId());
 
     client.subscribe(mqttchannel, 1);
   }
@@ -138,15 +135,9 @@ bool mqtt_reconnect() {
 }
 
 void mqtt_publishStatus() {
-  char status[70];
-  int doorStatus = digitalRead(0);
-  snprintf(status, 70,
-    "{\"Node\":\"%ld\",\"Counter\":\"%ld\",\"DoorStatus\":\"%ld\",\"DEBUG\":\"%ld\"}",
-    ESP.getChipId(),
-    ++mqtt_counter,
-    doorStatus,
-    led_status);
-  client.publish(MQTT_TOPIC, status);
+  status.State = (digitalRead(0) == 1);
+  status.Counter++;
+  //client.publish(MQTT_TOPIC, status.getJson().c_str());
 }
 
 void mqtt_publishConnected() {
@@ -212,3 +203,6 @@ void mqtt_publishConnected() {
 
   led_set(false);
 }
+
+#endif // OSX
+#endif // UNIT_TEST

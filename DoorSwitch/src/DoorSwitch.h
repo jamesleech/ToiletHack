@@ -1,19 +1,22 @@
+#ifndef UNIT_TEST
+#ifndef OSX
+
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
-#include <CustomOTA.h>
+#include <ArduinoOTA.h>
 #include <PubSubClient.h>
-#include <ArduinoJson.h>
 
 #include "user_config.h"
+#include "Status.h"
 
 char led_status = 0;
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+Status status(ESP.getChipId());
 long mqtt_lastReconnectAttempt = 0;
 long mqtt_lastMsgTimer = 0;
-long mqtt_counter = 0;
 
 void setup_wifi();
 void setup_OTA();
@@ -35,3 +38,6 @@ const char* mqtt_server = network_mqtt_server;
 #define ContextType_TextHtml "text/html"
 
 #define MQTT_TOPIC "ToiletHack"
+
+#endif //OSX
+#endif // UNIT_TEST
