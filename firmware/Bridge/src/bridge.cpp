@@ -1,18 +1,19 @@
 #ifndef UNIT_TEST
 #ifndef OSX
 
+#include <PubSubClient.h>
 #include "bridge.h"
 
 bool led_status = false;
-Status status(Status_Json_Len);
+Status status(ESP.getChipId());
 MDNSResponder mdns;
 ESP8266WebServer webServer(80);
 BridgeWebServer* bridge;
 
 WiFiClient espClient;
-PubSubClient mqttClient(espClient);
-
-char status_json[Status_Json_Len]; //alloc this once and keep it.
+PubSubClient pubSubClient(espClient);
+BridgeMQTTClient* mqtt;
+long mqtt_lastMsgTimer = 0;
 
 void setup() {
   pinMode(0, INPUT);
@@ -20,43 +21,31 @@ void setup() {
   led_set(true);
 
   setup_wifi();
+  setup_OTA();
+  //TODO: if OTA only button press don't do anything else.
+  // this should allow broken updates to be updated :)
 
   mdns.begin("hub1", WiFi.localIP());
-
   bridge = new BridgeWebServer(&webServer);
-
-  setup_OTA();
-  setup_MQTT();
+  mqtt = new BridgeMQTTClient(&pubSubClient);
 
   led_set(false);
+
+  WiFi.localIP().toString().toCharArray(status.NodeIp, 17);
 }
 
 void loop() {
+
   ArduinoOTA.handle();
   webServer.handleClient();
+  mqtt->Handle();
 
-  //mqtt connected?
-  if (!mqttClient.connected()) {
-    long now = millis();
-    //only try and reconnect every 5 seconds
-    if (now - mqtt_lastReconnectAttempt > 5000) {
-      mqtt_lastReconnectAttempt = now;
-      // Attempt to reconnect
-      if (mqtt_reconnect()) {
-        mqtt_lastReconnectAttempt = 0;
-      }
-    }
-  } else {
-    //do mqtt subscribe
-    mqttClient.loop();
-
-    //mqtt publish
-    //publish a status message every 2 seconds
-    long now = millis();
-    if (now - mqtt_lastMsgTimer > 2000) {
-      mqtt_lastMsgTimer = now;
-      mqtt_publishStatus();
-    }
+  //DEBUG: publish status every 2 seconds
+  long now = millis();
+  if (now - mqtt_lastMsgTimer > 2000) {
+    mqtt_lastMsgTimer = now;
+    status.State = (digitalRead(0) == 1);
+    mqtt->PublishStatus(&status);
   }
 }
 
@@ -98,19 +87,14 @@ void setup_OTA() {
   });
 
   ArduinoOTA.onError([](ota_error_t error) {
-    if (error == OTA_AUTH_ERROR) mqttClient.publish(MQTT_TOPIC, "OTA update: Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) mqttClient.publish(MQTT_TOPIC, "OTA update: Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) mqttClient.publish(MQTT_TOPIC, "OTA update: Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) mqttClient.publish(MQTT_TOPIC, "OTA update: Receive Failed");
-    else if (error == OTA_END_ERROR) mqttClient.publish(MQTT_TOPIC, "OTA update: End Failed");
+    if (error == OTA_AUTH_ERROR) mqtt->Publish("OTA update: Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) mqtt->Publish("OTA update: Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) mqtt->Publish("OTA update: Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) mqtt->Publish("OTA update: Receive Failed");
+    else if (error == OTA_END_ERROR) mqtt->Publish("OTA update: End Failed");
   });
 
   ArduinoOTA.begin();
-}
-
-void setup_MQTT() {
-  mqttClient.setServer(mqtt_server, 1883);
-  mqttClient.setCallback(mqtt_callback);
 }
 
 void led_set(bool on) {
@@ -124,102 +108,6 @@ void led_set(bool on) {
 
 void led_toggle() {
   led_set(!led_status);
-}
-
-void mqtt_callback(char* topic, byte* payload, unsigned int length) {
-
-  char mqtt_received[length];
-  //assume the bytes in the payload are chars
-  for (int i = 0; i < length; i++) {
-    mqtt_received[i] = (char)payload[i];
-  }
-
-  led_set(mqtt_received[0] == '1'); // Switch on the LED if a 1 was received as first character
-
-  mqttClient.publish(MQTT_TOPIC, "Got it!");
-}
-
-bool mqtt_reconnect() {
-  if (mqttClient.connect("ToiletHackNode0")) {
-    mqtt_publishConnected(); // Once connected, publish an announcement...
-
-    char mqttchannel[30];
-    snprintf(mqttchannel, 30, "ToiletHack.Node.%ld", ESP.getChipId());
-
-    mqttClient.subscribe(mqttchannel, 1);
-  }
-  return mqttClient.connected();
-}
-
-void mqtt_publishStatus() {
-  status.State = digitalRead(0) == 1;
-  status.toJson(status_json);
-
-  mqttClient.publish(MQTT_TOPIC, status_json);
-}
-
-void mqtt_publishConnected() {
-  led_set(true);
-  char connected[50];
-
-  uint32_t id = ESP.getChipId();
-
-  snprintf(connected, 50,
-    "{\"Node\":\"%ld\",\"Vcc\":\"%ld\"}",
-    id,
-    ESP.getVcc()
-  );
-  mqttClient.publish(MQTT_TOPIC, connected);
-  led_toggle();
-
-  snprintf(connected, 50,
-    "{\"Node\":\"%ld\",\"IP\":\"%s\"}",
-    id,
-    espClient.localIP().toString().c_str()
-  );
-  mqttClient.publish(MQTT_TOPIC,connected);
-
-  led_toggle();
-  snprintf(connected, 50,
-    "{\"Node\":\"%ld\",\"FreeHeap\":\"%ld\"}",
-    id,
-    ESP.getFreeHeap()
-  );
-  mqttClient.publish(MQTT_TOPIC,connected);
-
-  led_toggle();
-  snprintf(connected, 50,
-    "{\"Node\":\"%ld\",\"BootMode\":\"%ld\"}",
-    id,
-    ESP.getBootMode()
-  );
-  mqttClient.publish(MQTT_TOPIC,connected);
-
-  led_toggle();
-  snprintf(connected, 50,
-    "{\"Node\":\"%ld\",\"BootVersion\":\"%ld\"}",
-    id,
-    ESP.getBootVersion()
-  );
-  mqttClient.publish(MQTT_TOPIC,connected);
-
-  led_toggle();
-  snprintf(connected, 50,
-    "{\"Node\":\"%ld\",\"FlashChipId\":\"%ld\"}",
-    id,
-    ESP.getFlashChipId()
-  );
-  mqttClient.publish(MQTT_TOPIC,connected);
-
-  led_toggle();
-  snprintf(connected, 50,
-    "{\"Node\":\"%ld\",\"FlashChipSize\":\"%ld\"}",
-    id,
-    ESP.getFlashChipRealSize()
-  );
-  mqttClient.publish(MQTT_TOPIC,connected);
-
-  led_set(false);
 }
 
 #endif // OSX

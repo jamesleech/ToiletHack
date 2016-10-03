@@ -1,18 +1,21 @@
 #include <stdio.h>
 #include "status.h"
 
-Status::Status(unsigned int node) {
-  _node = node;
+Status::Status(unsigned int nodeId) {
+  _nodeId = nodeId;
 }
 
-unsigned int Status::getNode() {
-  return _node;
+unsigned int Status::getNodeId() {
+  return _nodeId;
 }
 
-void Status::toJson(char *json) {
-  snprintf(json, Status_Json_Len,
-    "{\"node\":\"%u\",\"counter\":\"%lu\",\"state\":\"%i\"}",
-    _node, ++_counter, State);
+char* Status::toJson() {
+
+  snprintf(_charbuffer, Status_Json_Len,
+    "{\"node\":\"%u\",\"ip\":\"%s\",\"counter\":\"%lu\",\"state\":\"%i\"}",
+    _nodeId, NodeIp, ++_counter, State);
+
+  return _charbuffer;
 }
 
 int Status::fromJson(char *json) {

@@ -8,29 +8,19 @@
 #include <ArduinoOTA.h>
 #include <status.h>
 #include "./bridgeWebServer/bridgeWebServer.h"
+#include "./bridgeMQTTClient/bridgeMQTTClient.h"
 
 #include "user_config.h"
 
-long mqtt_lastReconnectAttempt = 0;
-long mqtt_lastMsgTimer = 0;
-
 void setup_wifi();
 void setup_OTA();
-void setup_MQTT();
 
 void led_set(bool on);
 void led_toggle();
 
-void mqtt_callback(char* topic, byte* payload, unsigned int length);
-bool mqtt_reconnect();
-void mqtt_publishConnected();
-void mqtt_publishStatus();
-
 const char* ssid = network_ssid;
 const char* password = network_password;
 const char* mqtt_server = network_mqtt_server;
-
-#define MQTT_TOPIC "ToiletHack"
 
 #endif // OSX
 #endif // UNIT_TEST

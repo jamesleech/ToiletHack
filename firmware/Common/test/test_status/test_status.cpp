@@ -22,9 +22,9 @@ void test_toJson(void) {
   Status status(1422);
   status.State = true;
 
-  char json[Status_Json_Len];
-  status.toJson(json);
-  //TODO: figure out c 'string' stuff...
+  char* json;
+  json = status.toJson();
+  //TODO: figure out 'string' stuff...
   //test if the node 1422 value is in the string
   //test if the counter value is 1 in the string
   //test if the state is true in the string
