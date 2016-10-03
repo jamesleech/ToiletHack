@@ -72,14 +72,17 @@ void setup_OTA() {
   ArduinoOTA.onStart([]() {
     // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
     client.publish(MQTT_TOPIC, "Starting OTA Update");
+    led_set(true);
   });
 
   ArduinoOTA.onEnd([]() {
     client.publish(MQTT_TOPIC, "OTA Finished, Rebooting");
+    led_set(false);
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     //Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    led_toggle();
   });
 
   ArduinoOTA.onError([](ota_error_t error) {
@@ -100,13 +103,16 @@ void setup_MQTT() {
 }
 
 void led_set(bool on) {
+  led_status = on;
   if (on) {
-    led_status = 1;
     digitalWrite(LED_BUILTIN, LOW); // but actually the LED is on; this is it is acive low on the ESP-01)
   } else {
-    led_status = 0;
     digitalWrite(LED_BUILTIN, HIGH);
   }
+}
+
+void led_toggle() {
+  led_set(!led_status);
 }
 
 void mqtt_callback(char* topic, byte* payload, unsigned int length) {
@@ -136,8 +142,10 @@ bool mqtt_reconnect() {
 
 void mqtt_publishStatus() {
   status.State = (digitalRead(0) == 1);
-  status.Counter++;
-  //client.publish(MQTT_TOPIC, status.getJson().c_str());
+  char json[100];
+  status.toJson(json,100);
+
+  client.publish(MQTT_TOPIC, json);
 }
 
 void mqtt_publishConnected() {

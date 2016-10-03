@@ -10,7 +10,7 @@
 #include "user_config.h"
 #include "Status.h"
 
-char led_status = 0;
+bool led_status = 0;
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -23,6 +23,7 @@ void setup_OTA();
 void setup_MQTT();
 
 void led_set(bool on);
+void led_toggle();
 
 void mqtt_callback(char* topic, byte* payload, unsigned int length);
 bool mqtt_reconnect();
