@@ -3,6 +3,8 @@
 
 #include "DoorSwitch.h"
 
+char status_json[Status_Json_Len]; //this is our only reason for being, alloc this once and keep it.
+
 void setup() {
   pinMode(0, INPUT);
   pinMode(LED_BUILTIN, OUTPUT);
@@ -142,10 +144,9 @@ bool mqtt_reconnect() {
 
 void mqtt_publishStatus() {
   status.State = (digitalRead(0) == 1);
-  char json[100];
-  status.toJson(json,100);
+  status.toJson(status_json);
 
-  client.publish(MQTT_TOPIC, json);
+  client.publish(MQTT_TOPIC, status_json);
 }
 
 void mqtt_publishConnected() {

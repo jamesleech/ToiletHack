@@ -11,14 +11,14 @@ unsigned int Status::getNode() {
   return _node;
 }
 
-void Status::toJson(char *json, int json_len) {
-  snprintf(json, json_len,
+void Status::toJson(char *json) {
+  snprintf(json, Status_Json_Len,
     "{\"node\":\"%u\",\"counter\":\"%lu\",\"state\":\"%i\"}",
     _node, ++_counter, State);
   //sprintf("{\"Node\":\"%ld\",\"Counter\":\"%ld\",\"State\":\"%ld\"}", json, _node, Counter, State);
 }
 
-int Status::fromJson(char *json, int json_len) {
+int Status::fromJson(char *json) {
   return -1;
   // jsmn_parser p;
 	// jsmntok_t t[6]; /* we only expect 3 tokens */

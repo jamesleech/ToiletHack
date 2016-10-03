@@ -2,14 +2,16 @@
 #define __STATUS_H
 #include <jsmn.h>
 
+#define Status_Json_Len 100
+
 class Status
 {
   public:
     Status(unsigned int node);
     bool State;
     unsigned int getNode();
-    void toJson(char *json, int json_len);
-    int fromJson(char *json, int json_len);
+    void toJson(char *json);
+    int fromJson(char *json);
   private:
     unsigned int _node;
     unsigned long _counter;
