@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include "Status.h"
 
-#pragma GCC diagnostic ignored "-Wwrite-strings"
-
 Status::Status(unsigned int node) {
   _node = node;
 }
@@ -15,7 +13,6 @@ void Status::toJson(char *json) {
   snprintf(json, Status_Json_Len,
     "{\"node\":\"%u\",\"counter\":\"%lu\",\"state\":\"%i\"}",
     _node, ++_counter, State);
-  //sprintf("{\"Node\":\"%ld\",\"Counter\":\"%ld\",\"State\":\"%ld\"}", json, _node, Counter, State);
 }
 
 int Status::fromJson(char *json) {
