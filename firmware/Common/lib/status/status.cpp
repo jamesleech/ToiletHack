@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "Status.h"
+#include "status.h"
 
 Status::Status(unsigned int node) {
   _node = node;

@@ -3,7 +3,16 @@
 
 #include "bridge.h"
 
-char status_json[Status_Json_Len]; //this is our only reason for being, alloc this once and keep it.
+bool led_status = false;
+Status status(Status_Json_Len);
+MDNSResponder mdns;
+ESP8266WebServer webServer(80);
+BridgeWebServer* bridge;
+
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
+
+char status_json[Status_Json_Len]; //alloc this once and keep it.
 
 void setup() {
   pinMode(0, INPUT);
@@ -12,9 +21,10 @@ void setup() {
 
   setup_wifi();
 
-  mdns.begin("Hub1", WiFi.localIP());
+  mdns.begin("hub1", WiFi.localIP());
 
-  setup_WebServer();
+  bridge = new BridgeWebServer(&webServer);
+
   setup_OTA();
   setup_MQTT();
 
@@ -61,24 +71,14 @@ void setup_wifi() {
   }
 }
 
-void setup_WebServer() {
-  webServer.on("/", handleRoot);
-  webServer.on("/status", handleStatus);
-  webServer.onNotFound(handleNotFound);
-  webServer.begin();
-}
-
 void setup_OTA() {
 
   // Port defaults to 8266
   // CustomOTA.setPort(8266);
-
   // Hostname defaults to esp8266-[ChipID]
   // CustomOTA.setHostname("myesp8266");
-
   // No authentication by default
   // CustomOTA.setPassword("admin");
-
   // Password can be set with it's md5 value as well
   // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
   // CustomOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
@@ -220,36 +220,6 @@ void mqtt_publishConnected() {
   mqttClient.publish(MQTT_TOPIC,connected);
 
   led_set(false);
-}
-
-void handleRoot() {
-  webServer.send(200, ContextType_TextHtml,
-    "<!DOCTYPE html><html><head><title>Toilet Hack Node</title></head><body><p>I'm a node, one of many.</p></body></html>");
-}
-
-void handleStatus() {
-
-  char result[50];
-  snprintf(result, 50,
-    "{\"mqttValue\":\"%ld\",\"LED\":\"%ld\",\"ip\":\"todo\"}",
-    1, 1);
-
-  webServer.send(200, ContextType_TextJson, result);
-}
-
-void handleNotFound() {
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += webServer.uri();
-  message += "\nMethod: ";
-  message += (webServer.method() == HTTP_GET)?"GET":"POST";
-  message += "\nArguments: ";
-  message += webServer.args();
-  message += "\n";
-  for (uint8_t i=0; i<webServer.args(); i++){
-    message += " " + webServer.argName(i) + ": " + webServer.arg(i) + "\n";
-  }
-  webServer.send(404, "text/plain", message);
 }
 
 #endif // OSX
