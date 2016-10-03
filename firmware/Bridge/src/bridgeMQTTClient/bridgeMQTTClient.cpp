@@ -1,7 +1,6 @@
 #ifndef UNIT_TEST
 #ifndef OSX
 
-#include <functional>
 #include "bridgeMQTTClient.h"
 
 #define MQTT_TOPIC "ToiletHack"

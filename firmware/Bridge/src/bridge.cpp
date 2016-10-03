@@ -7,7 +7,7 @@
 bool led_status = false;
 Status status(ESP.getChipId());
 MDNSResponder mdns;
-ESP8266WebServer webServer(80);
+ESP8266WebServer* webServer;
 BridgeWebServer* bridge;
 
 WiFiClient espClient;
@@ -26,7 +26,8 @@ void setup() {
   // this should allow broken updates to be updated :)
 
   mdns.begin("hub1", WiFi.localIP());
-  bridge = new BridgeWebServer(&webServer);
+  webServer = new ESP8266WebServer(WiFi.softAPIP()); //WiFi.softAPIP() //WiFi.localIP()
+  bridge = new BridgeWebServer(webServer);
   mqtt = new BridgeMQTTClient(&pubSubClient);
 
   led_set(false);
@@ -37,7 +38,7 @@ void setup() {
 void loop() {
 
   ArduinoOTA.handle();
-  webServer.handleClient();
+  webServer->handleClient();
   mqtt->Handle();
 
   //DEBUG: publish status every 2 seconds
@@ -50,14 +51,28 @@ void loop() {
 }
 
 void setup_wifi() {
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
   WiFi.begin(ssid, password);
+  WiFi.softAP("THAP-01","ToiletHackPassword");
 
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
     //"Connection Failed! Rebooting
     delay(5000);
     ESP.restart();
   }
+}
+
+void led_set(bool on) {
+  led_status = on;
+  if (on) {
+    digitalWrite(LED_BUILTIN, LOW); // but actually the LED is on; this is it is acive low on the ESP-01)
+  } else {
+    digitalWrite(LED_BUILTIN, HIGH);
+  }
+}
+
+void led_toggle() {
+  led_set(!led_status);
 }
 
 void setup_OTA() {
@@ -95,19 +110,6 @@ void setup_OTA() {
   });
 
   ArduinoOTA.begin();
-}
-
-void led_set(bool on) {
-  led_status = on;
-  if (on) {
-    digitalWrite(LED_BUILTIN, LOW); // but actually the LED is on; this is it is acive low on the ESP-01)
-  } else {
-    digitalWrite(LED_BUILTIN, HIGH);
-  }
-}
-
-void led_toggle() {
-  led_set(!led_status);
 }
 
 #endif // OSX
