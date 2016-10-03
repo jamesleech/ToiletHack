@@ -20,16 +20,14 @@ void test_constructor(void) {
 
 void test_toJson(void) {
   Status status(1422);
-
-  status.Counter++;
   status.State = true;
 
   char json[100];
   status.toJson(json, 100);
   //TODO: figure out c 'string' stuff...
   //test if the node 1422 value is in the string
-  //test if the counter value is in the string
-  //test if the state is in the string
+  //test if the counter value is 1 in the string
+  //test if the state is true in the string
   TEST_ASSERT_MESSAGE(1==1, json);
 
 }
