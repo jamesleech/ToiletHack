@@ -11,6 +11,10 @@ void setup() {
   led_set(true);
 
   setup_wifi();
+
+  mdns.begin("Hub1", WiFi.localIP());
+
+  setup_WebServer();
   setup_OTA();
   setup_MQTT();
 
@@ -19,9 +23,10 @@ void setup() {
 
 void loop() {
   ArduinoOTA.handle();
+  webServer.handleClient();
 
   //mqtt connected?
-  if (!client.connected()) {
+  if (!mqttClient.connected()) {
     long now = millis();
     //only try and reconnect every 5 seconds
     if (now - mqtt_lastReconnectAttempt > 5000) {
@@ -33,7 +38,7 @@ void loop() {
     }
   } else {
     //do mqtt subscribe
-    client.loop();
+    mqttClient.loop();
 
     //mqtt publish
     //publish a status message every 2 seconds
@@ -56,6 +61,13 @@ void setup_wifi() {
   }
 }
 
+void setup_WebServer() {
+  webServer.on("/", handleRoot);
+  webServer.on("/status", handleStatus);
+  webServer.onNotFound(handleNotFound);
+  webServer.begin();
+}
+
 void setup_OTA() {
 
   // Port defaults to 8266
@@ -73,12 +85,10 @@ void setup_OTA() {
 
   ArduinoOTA.onStart([]() {
     // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-    client.publish(MQTT_TOPIC, "Starting OTA Update");
     led_set(true);
   });
 
   ArduinoOTA.onEnd([]() {
-    client.publish(MQTT_TOPIC, "OTA Finished, Rebooting");
     led_set(false);
   });
 
@@ -88,20 +98,19 @@ void setup_OTA() {
   });
 
   ArduinoOTA.onError([](ota_error_t error) {
-    client.publish(MQTT_TOPIC, "OTA update failed");
-    if (error == OTA_AUTH_ERROR) client.publish(MQTT_TOPIC, "OTA update: Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) client.publish(MQTT_TOPIC, "OTA update: Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) client.publish(MQTT_TOPIC, "OTA update: Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) client.publish(MQTT_TOPIC, "OTA update: Receive Failed");
-    else if (error == OTA_END_ERROR) client.publish(MQTT_TOPIC, "OTA update: End Failed");
+    if (error == OTA_AUTH_ERROR) mqttClient.publish(MQTT_TOPIC, "OTA update: Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) mqttClient.publish(MQTT_TOPIC, "OTA update: Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) mqttClient.publish(MQTT_TOPIC, "OTA update: Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) mqttClient.publish(MQTT_TOPIC, "OTA update: Receive Failed");
+    else if (error == OTA_END_ERROR) mqttClient.publish(MQTT_TOPIC, "OTA update: End Failed");
   });
 
   ArduinoOTA.begin();
 }
 
 void setup_MQTT() {
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(mqtt_callback);
+  mqttClient.setServer(mqtt_server, 1883);
+  mqttClient.setCallback(mqtt_callback);
 }
 
 void led_set(bool on) {
@@ -127,26 +136,26 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
 
   led_set(mqtt_received[0] == '1'); // Switch on the LED if a 1 was received as first character
 
-  client.publish(MQTT_TOPIC, "Got it!");
+  mqttClient.publish(MQTT_TOPIC, "Got it!");
 }
 
 bool mqtt_reconnect() {
-  if (client.connect("ToiletHackNode0")) {
+  if (mqttClient.connect("ToiletHackNode0")) {
     mqtt_publishConnected(); // Once connected, publish an announcement...
 
     char mqttchannel[30];
     snprintf(mqttchannel, 30, "ToiletHack.Node.%ld", ESP.getChipId());
 
-    client.subscribe(mqttchannel, 1);
+    mqttClient.subscribe(mqttchannel, 1);
   }
-  return client.connected();
+  return mqttClient.connected();
 }
 
 void mqtt_publishStatus() {
-  status.State = (digitalRead(0) == 1);
+  status.State = digitalRead(0) == 1;
   status.toJson(status_json);
 
-  client.publish(MQTT_TOPIC, status_json);
+  mqttClient.publish(MQTT_TOPIC, status_json);
 }
 
 void mqtt_publishConnected() {
@@ -160,57 +169,87 @@ void mqtt_publishConnected() {
     id,
     ESP.getVcc()
   );
-  client.publish(MQTT_TOPIC, connected);
-  led_set(false);
+  mqttClient.publish(MQTT_TOPIC, connected);
+  led_toggle();
 
   snprintf(connected, 50,
     "{\"Node\":\"%ld\",\"IP\":\"%s\"}",
     id,
     espClient.localIP().toString().c_str()
   );
-  client.publish(MQTT_TOPIC,connected);
+  mqttClient.publish(MQTT_TOPIC,connected);
 
-  led_set(true);
+  led_toggle();
   snprintf(connected, 50,
     "{\"Node\":\"%ld\",\"FreeHeap\":\"%ld\"}",
     id,
     ESP.getFreeHeap()
   );
-  client.publish(MQTT_TOPIC,connected);
+  mqttClient.publish(MQTT_TOPIC,connected);
 
-  led_set(false);
+  led_toggle();
   snprintf(connected, 50,
     "{\"Node\":\"%ld\",\"BootMode\":\"%ld\"}",
     id,
     ESP.getBootMode()
   );
-  client.publish(MQTT_TOPIC,connected);
+  mqttClient.publish(MQTT_TOPIC,connected);
 
-  led_set(true);
+  led_toggle();
   snprintf(connected, 50,
     "{\"Node\":\"%ld\",\"BootVersion\":\"%ld\"}",
     id,
     ESP.getBootVersion()
   );
-  client.publish(MQTT_TOPIC,connected);
+  mqttClient.publish(MQTT_TOPIC,connected);
 
-  led_set(false);
+  led_toggle();
   snprintf(connected, 50,
     "{\"Node\":\"%ld\",\"FlashChipId\":\"%ld\"}",
     id,
     ESP.getFlashChipId()
   );
-  client.publish(MQTT_TOPIC,connected);
+  mqttClient.publish(MQTT_TOPIC,connected);
 
-  led_set(true);
+  led_toggle();
   snprintf(connected, 50,
     "{\"Node\":\"%ld\",\"FlashChipSize\":\"%ld\"}",
     id,
     ESP.getFlashChipRealSize()
   );
-  client.publish(MQTT_TOPIC,connected);
+  mqttClient.publish(MQTT_TOPIC,connected);
 
   led_set(false);
+}
+
+void handleRoot() {
+  webServer.send(200, ContextType_TextHtml,
+    "<!DOCTYPE html><html><head><title>Toilet Hack Node</title></head><body><p>I'm a node, one of many.</p></body></html>");
+}
+
+void handleStatus() {
+
+  char result[50];
+  snprintf(result, 50,
+    "{\"mqttValue\":\"%ld\",\"LED\":\"%ld\",\"ip\":\"todo\"}",
+    1, 1);
+
+  webServer.send(200, ContextType_TextJson, result);
+}
+
+void handleNotFound() {
+  String message = "File Not Found\n\n";
+  message += "URI: ";
+  message += webServer.uri();
+  message += "\nMethod: ";
+  message += (webServer.method() == HTTP_GET)?"GET":"POST";
+  message += "\nArguments: ";
+  message += webServer.args();
+  message += "\n";
+  for (uint8_t i=0; i<webServer.args(); i++){
+    message += " " + webServer.argName(i) + ": " + webServer.arg(i) + "\n";
+  }
+  webServer.send(404, "text/plain", message);
 }
 
 #endif // OSX
