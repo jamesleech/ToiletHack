@@ -9,7 +9,8 @@ using namespace std::placeholders;
 
 long mqtt_lastReconnectAttempt = 0;
 
-BridgeMQTTClient::BridgeMQTTClient(PubSubClient* pubSubClient) {
+BridgeMQTTClient::BridgeMQTTClient(unsigned int bridgeId, PubSubClient* pubSubClient) {
+  _bridgeId = bridgeId;
   _pubSubClient = pubSubClient;
 
   _pubSubClient->setServer(mqtt_server, 1883);
@@ -19,45 +20,55 @@ BridgeMQTTClient::BridgeMQTTClient(PubSubClient* pubSubClient) {
 }
 
 void BridgeMQTTClient::Publish(const char* payload) {
-  _pubSubClient->publish(MQTT_TOPIC, payload);
+  if(guardConnect()) {
+    _pubSubClient->publish(MQTT_TOPIC, payload);
+  }
 }
 
 void BridgeMQTTClient::PublishStatus(Status* status) {
-
-  char* status_json = status->toJson();
-  Publish(status_json);
+  if(guardConnect()) {
+    char* status_json = status->toJson();
+    Publish(status_json);
+  }
 }
 
 void BridgeMQTTClient::Handle() {
-  //mqtt connected?
-  if (!_pubSubClient->connected()) {
-    long now = millis();
-    //only try and reconnect every 5 seconds
-    if (now - mqtt_lastReconnectAttempt > 5000) {
-      mqtt_lastReconnectAttempt = now;
-      // Attempt to reconnect
-      if (reconnect()) {
-        mqtt_lastReconnectAttempt = 0;
-      }
-    }
-  }
 
-  if (_pubSubClient->connected()) {
-    //do mqtt subscribe
+  if (guardConnect()) {
     _pubSubClient->loop();
   }
+
+}
+
+bool BridgeMQTTClient::guardConnect() {
+
+    if (!_pubSubClient->connected()) {
+      long now = millis();
+      //only try and reconnect every 5 seconds
+      if (now - mqtt_lastReconnectAttempt > 5000) {
+        mqtt_lastReconnectAttempt = now;
+        // Attempt to reconnect
+        if (reconnect()) {
+          mqtt_lastReconnectAttempt = 0;
+        }
+      }
+    }
+
+    return _pubSubClient->connected();
 }
 
 bool BridgeMQTTClient::reconnect() {
 
-  if (_pubSubClient->connect("ToiletHackNode0")) {
+  char buffer[30];
+  snprintf(buffer, 30, "THB_%ld", _bridgeId);
+
+  if (_pubSubClient->connect(buffer)) {
     publishConnected(); // Once connected, publish an announcement...
 
-    char mqttchannel[30];
-    snprintf(mqttchannel, 30, "ToiletHack.Node.%ld", ESP.getChipId());
-
-    _pubSubClient->subscribe(mqttchannel, 1);
+    snprintf(buffer, 30, "ToiletHack.Node.%ld", _bridgeId);
+    _pubSubClient->subscribe(buffer, 1);
   }
+
   return _pubSubClient->connected();
 }
 

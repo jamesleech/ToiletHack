@@ -6,7 +6,7 @@
 
 bool led_status = false;
 Status status(ESP.getChipId());
-MDNSResponder mdns;
+MDNSResponder* mdnsWebServer;
 ESP8266WebServer* webServer;
 BridgeWebServer* bridge;
 
@@ -25,10 +25,11 @@ void setup() {
   //TODO: if OTA only button press don't do anything else.
   // this should allow broken updates to be updated :)
 
-  mdns.begin("hub1", WiFi.localIP());
+  mdnsWebServer = new MDNSResponder();
+  mdnsWebServer->begin("hub1", WiFi.localIP());
   webServer = new ESP8266WebServer(WiFi.softAPIP()); //WiFi.softAPIP() //WiFi.localIP()
   bridge = new BridgeWebServer(webServer);
-  mqtt = new BridgeMQTTClient(&pubSubClient);
+  mqtt = new BridgeMQTTClient(ESP.getChipId(), &pubSubClient);
 
   led_set(false);
 

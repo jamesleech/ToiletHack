@@ -11,7 +11,7 @@
 class BridgeMQTTClient
 {
   public:
-    BridgeMQTTClient(PubSubClient* pubSubClient); //TODO: How to we mock this sucker in c++
+    BridgeMQTTClient(unsigned int bridgeId, PubSubClient* pubSubClient); //TODO: How to we mock this sucker in c++
     void Publish(const char* payload);
     void Handle();
     void PublishStatus(Status* status);
@@ -19,7 +19,9 @@ class BridgeMQTTClient
   private:
     const char* mqtt_server = network_mqtt_server; //The IP of the mqtt server
 
+    unsigned int _bridgeId;
     PubSubClient* _pubSubClient;
+    bool guardConnect();
     bool reconnect();
     void sub_callback(char* topic, byte* payload, unsigned int length);
     void publishConnected(); //called after connecting to the server
